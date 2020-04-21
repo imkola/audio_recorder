@@ -5,14 +5,13 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.media.MediaRecorder;
 import android.os.Environment;
+import android.os.SystemClock;
 import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import java.io.IOException;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.HashMap;
 
 import io.flutter.plugin.common.MethodChannel;
@@ -37,7 +36,7 @@ public class AudioRecorderPlugin implements MethodCallHandler,
   private boolean isRecording = false;
   private MediaRecorder mRecorder = null;
   private String mFilePath = null;
-  private Date startTime = null;
+  private long startTime;
   private String mExtension = "";
   private Result pendingResult;
   private WavRecorder wavRecorder;
@@ -79,12 +78,13 @@ public class AudioRecorderPlugin implements MethodCallHandler,
         Log.d(LOG_TAG, "Start");
         String path = call.argument("path");
         mExtension = call.argument("extension");
-        startTime = Calendar.getInstance().getTime();
+        startTime = SystemClock.elapsedRealtime();
         if (path != null) {
           mFilePath = path;
         } else {
-          String fileName = String.valueOf(startTime.getTime());
-          mFilePath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + fileName + mExtension;
+          String fileName = String.valueOf(System.currentTimeMillis());
+          mFilePath = registrar.context().getExternalFilesDir(null)
+              + "/" + fileName + mExtension;
         }
         Log.d(LOG_TAG, mFilePath);
         startRecording();
@@ -94,7 +94,7 @@ public class AudioRecorderPlugin implements MethodCallHandler,
       case "stop":
         Log.d(LOG_TAG, "Stop");
         stopRecording();
-        long duration = Calendar.getInstance().getTime().getTime() - startTime.getTime();
+        long duration = SystemClock.elapsedRealtime() - startTime;
         Log.d(LOG_TAG, "Duration : " + String.valueOf(duration));
         isRecording = false;
         HashMap<String, Object> recordingResult = new HashMap<>();
