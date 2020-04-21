@@ -7,6 +7,9 @@ import android.media.MediaRecorder;
 import android.os.Environment;
 import android.util.Log;
 
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
 import java.io.IOException;
 import java.util.Calendar;
 import java.util.Date;
@@ -16,20 +19,46 @@ import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.MethodCall;
+import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
 
 /**
  * AudioRecorderPlugin
  */
-public class AudioRecorderPlugin implements MethodCallHandler {
+public class AudioRecorderPlugin implements MethodCallHandler,
+    PluginRegistry.RequestPermissionsResultListener {
+  private static final String LOG_TAG = "AudioRecorder";
+
+  // I think request codes need to be unique across all Android plugins
+  // in a Flutter app, but I'm not sure of the best way to pick one.
+  private static final int PERMISSIONS_REQUEST_CODE = 201;
+
   private final Registrar registrar;
   private boolean isRecording = false;
-  private static final String LOG_TAG = "AudioRecorder";
   private MediaRecorder mRecorder = null;
-  private static String mFilePath = null;
+  private String mFilePath = null;
   private Date startTime = null;
   private String mExtension = "";
+  private Result pendingResult;
   private WavRecorder wavRecorder;
+
+  @Override
+  public boolean onRequestPermissionsResult(int requestCode,
+      String[] permissions, int[] grantResults) {
+    if (requestCode != PERMISSIONS_REQUEST_CODE) {
+      return false;
+    }
+
+    if (pendingResult != null) {
+      boolean hasPermissions = grantResults.length == 1
+          && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+      pendingResult.success(hasPermissions);
+      pendingResult = null;
+    }
+
+    return true;
+  }
+
   /**
    * Plugin registration.
    */
@@ -38,8 +67,9 @@ public class AudioRecorderPlugin implements MethodCallHandler {
     channel.setMethodCallHandler(new AudioRecorderPlugin(registrar));
   }
 
-  private AudioRecorderPlugin(Registrar registrar){
+  private AudioRecorderPlugin(Registrar registrar) {
     this.registrar = registrar;
+    this.registrar.addRequestPermissionsResultListener(this);
   }
 
   @Override
@@ -79,17 +109,26 @@ public class AudioRecorderPlugin implements MethodCallHandler {
         break;
       case "hasPermissions":
         Log.d(LOG_TAG, "Get hasPermissions");
-        Context context = registrar.context();
-        PackageManager pm = context.getPackageManager();
-        int hasStoragePerm = pm.checkPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, context.getPackageName());
-        int hasRecordPerm = pm.checkPermission(Manifest.permission.RECORD_AUDIO, context.getPackageName());
-        boolean hasPermissions = hasStoragePerm == PackageManager.PERMISSION_GRANTED && hasRecordPerm == PackageManager.PERMISSION_GRANTED;
-        result.success(hasPermissions);
+        if (hasPermission(Manifest.permission.RECORD_AUDIO)) {
+          result.success(hasPermission(Manifest.permission.RECORD_AUDIO));
+        } else {
+          pendingResult = result;
+          ActivityCompat.requestPermissions(
+              registrar.activity(),
+              new String[] { Manifest.permission.RECORD_AUDIO },
+              PERMISSIONS_REQUEST_CODE);
+        }
         break;
       default:
         result.notImplemented();
         break;
     }
+  }
+
+  private boolean hasPermission(String permission) {
+    Context context = registrar.context();
+    return ContextCompat.checkSelfPermission(context, permission)
+        == PackageManager.PERMISSION_GRANTED;
   }
 
   private void startRecording() {
