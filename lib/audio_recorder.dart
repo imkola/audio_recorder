@@ -61,6 +61,16 @@ class AudioRecorder {
     return isRecording;
   }
 
+  /// The current recording status.
+  static Future<RecordingStatus> get recordingStatus async {
+    Map<String, dynamic> result =
+        await _channel.invokeMapMethod('recordingStatus');
+    return RecordingStatus(
+      isRecording: result['isRecording'],
+      duration: Duration(milliseconds: result['duration']),
+    );
+  }
+
   static Future<bool> get hasPermissions async {
     bool hasPermission = await _channel.invokeMethod('hasPermissions');
     return hasPermission;
@@ -117,4 +127,20 @@ class Recording {
   AudioOutputFormat audioOutputFormat;
 
   Recording({this.duration, this.path, this.audioOutputFormat, this.extension});
+}
+
+/// Represents the current recording status.
+class RecordingStatus {
+  bool isRecording;
+
+  /// The duration of the current recording, if actively recording.
+  ///
+  /// This value is currently more accurate on iOS than on Android, because on
+  /// Android there doesn't appear to be a way to query the native recorder
+  /// directly for this value. Instead, we take a timestamp when starting the
+  /// recording, so if there is any lag before the recording actually starts,
+  /// the reported duration will be longer than the actual audio file.
+  Duration duration;
+
+  RecordingStatus({this.isRecording, this.duration});
 }

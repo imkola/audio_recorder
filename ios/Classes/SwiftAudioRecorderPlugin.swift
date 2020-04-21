@@ -62,6 +62,12 @@ public class SwiftAudioRecorderPlugin: NSObject, FlutterPlugin, AVAudioRecorderD
         case "isRecording":
             print("isRecording")
             result(isRecording)
+        case "recordingStatus":
+            var status = [String : Any]()
+            status["isRecording"] = isRecording
+            status["duration"] = (audioRecorder != nil)
+                ? Int(audioRecorder.currentTime * 1000) : 0
+            result(status)
         case "hasPermissions":
             print("hasPermissions")
             switch AVAudioSession.sharedInstance().recordPermission {

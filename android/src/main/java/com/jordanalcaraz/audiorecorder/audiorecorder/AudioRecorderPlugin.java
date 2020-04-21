@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Map;
 
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
@@ -106,6 +107,14 @@ public class AudioRecorderPlugin implements MethodCallHandler,
       case "isRecording":
         Log.d(LOG_TAG, "Get isRecording");
         result.success(isRecording);
+        break;
+      case "recordingStatus":
+        //Log.d(LOG_TAG, "Get recordingStatus");
+        Map<String, Object> status = new HashMap<>();
+        status.put("isRecording", isRecording);
+        duration = isRecording ? SystemClock.elapsedRealtime() - startTime : 0;
+        status.put("duration", duration);
+        result.success(status);
         break;
       case "hasPermissions":
         Log.d(LOG_TAG, "Get hasPermissions");
